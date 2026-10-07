@@ -636,6 +636,108 @@ const JOKES = [
   "I asked the computer to cheer up. It said it needed some more RAM-pathy.",
   "Why do programmers prefer dark mode? Because light attracts bugs."
 ];
+/* ---------------- Device actions: open the REAL app on a phone ---------------- */
+const UA = navigator.userAgent;
+const IS_ANDROID = /Android/i.test(UA);
+const IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/.test(UA) && (navigator.maxTouchPoints||0) > 1);
+const IS_MOBILE = IS_ANDROID || IS_IOS || /Mobile|Tablet/i.test(UA);
+const IS_CHROME_ANDROID = IS_ANDROID && /Chrome\//.test(UA) && !/EdgA|OPR|SamsungBrowser/i.test(UA);
+
+// website + native app deep-link scheme / Android package for each app
+const APPS = {
+  youtube:   { label:"YouTube",     web:"https://www.youtube.com",   ios:"youtube://",       scheme:"youtube",       pkg:"com.google.android.youtube" },
+  whatsapp:  { label:"WhatsApp",    web:"https://web.whatsapp.com",  ios:"whatsapp://",      scheme:"whatsapp",      pkg:"com.whatsapp" },
+  instagram: { label:"Instagram",   web:"https://www.instagram.com", ios:"instagram://app",  scheme:"instagram",     pkg:"com.instagram.android" },
+  facebook:  { label:"Facebook",    web:"https://www.facebook.com",  ios:"fb://",            scheme:"fb",            pkg:"com.facebook.katana" },
+  twitter:   { label:"X",           web:"https://twitter.com",       ios:"twitter://",       scheme:"twitter",       pkg:"com.twitter.android" },
+  x:         { label:"X",           web:"https://x.com",             ios:"twitter://",       scheme:"twitter",       pkg:"com.twitter.android" },
+  spotify:   { label:"Spotify",     web:"https://open.spotify.com",  ios:"spotify://",       scheme:"spotify",       pkg:"com.spotify.music" },
+  netflix:   { label:"Netflix",     web:"https://www.netflix.com",   ios:"nflx://",          scheme:"nflx",          pkg:"com.netflix.mediaclient" },
+  gmail:     { label:"Gmail",       web:"https://mail.google.com",   ios:"googlegmail://",   scheme:"googlegmail",   pkg:"com.google.android.gm" },
+  maps:      { label:"Maps",        web:"https://maps.google.com",   ios:"comgooglemaps://", scheme:"comgooglemaps", pkg:"com.google.android.apps.maps" },
+  linkedin:  { label:"LinkedIn",    web:"https://www.linkedin.com",  ios:"linkedin://",      scheme:"linkedin",      pkg:"com.linkedin.android" },
+  reddit:    { label:"Reddit",      web:"https://www.reddit.com",    ios:"reddit://",        scheme:"reddit",        pkg:"com.reddit.frontpage" },
+  snapchat:  { label:"Snapchat",    web:"https://www.snapchat.com",  ios:"snapchat://",      scheme:"snapchat",      pkg:"com.snapchat.android" },
+  telegram:  { label:"Telegram",    web:"https://web.telegram.org",  ios:"tg://",            scheme:"tg",            pkg:"org.telegram.messenger" },
+  amazon:    { label:"Amazon",      web:"https://www.amazon.in",     ios:"amzn://",          scheme:"amzn",          pkg:"in.amazon.mShop.android.shopping" },
+  flipkart:  { label:"Flipkart",    web:"https://www.flipkart.com",  ios:"flipkart://",      scheme:"flipkart",      pkg:"com.flipkart.android" },
+  swiggy:    { label:"Swiggy",      web:"https://www.swiggy.com",    ios:"swiggy://",        scheme:"swiggy",        pkg:"in.swiggy.android" },
+  zomato:    { label:"Zomato",      web:"https://www.zomato.com",    ios:"zomato://",        scheme:"zomato",        pkg:"com.application.zomato" },
+  paytm:     { label:"Paytm",       web:"https://paytm.com",         ios:"paytmmp://",       scheme:"paytmmp",       pkg:"net.one97.paytm" },
+  phonepe:   { label:"PhonePe",     web:"https://www.phonepe.com",   ios:"phonepe://",       scheme:"phonepe",       pkg:"com.phonepe.app" },
+  hotstar:   { label:"Hotstar",     web:"https://www.hotstar.com",   ios:"hotstar://",       scheme:"hotstar",       pkg:"in.startv.hotstar" },
+  prime:     { label:"Prime Video", web:"https://www.primevideo.com", ios:"aiv://",          scheme:"aiv",           pkg:"com.amazon.avod.thirdpartyclient" },
+  // web-only (no reliable native deep link)
+  google:    { label:"Google",      web:"https://www.google.com" },
+  github:    { label:"GitHub",      web:"https://github.com" },
+  wikipedia: { label:"Wikipedia",   web:"https://www.wikipedia.org" },
+  chatgpt:   { label:"ChatGPT",     web:"https://chat.openai.com" },
+  irctc:     { label:"IRCTC",       web:"https://www.irctc.co.in" }
+};
+
+// Try a custom scheme; if nothing opens the app within ~1.6s, fall back to the website.
+function launchScheme(scheme, webUrl){
+  let settled = false;
+  const fallback = setTimeout(function(){
+    if(!settled && !document.hidden){ window.location.href = webUrl; }
+  }, 1600);
+  const clear = function(){ settled = true; clearTimeout(fallback); };
+  window.addEventListener("pagehide", clear, {once:true});
+  document.addEventListener("visibilitychange", function once(){
+    if(document.hidden){ clear(); document.removeEventListener("visibilitychange", once); }
+  });
+  window.location.href = scheme;
+}
+
+function openAppOrSite(rawTarget){
+  const cleaned = String(rawTarget)
+    .replace(/\b(application|app|website|site|dot com)\b/gi, " ")
+    .replace(/\.com\b/gi, " ")
+    .trim();
+  const key = cleaned.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const app = APPS[key];
+
+  if(app){
+    // On a phone, launch the installed app first.
+    if(IS_MOBILE && app.pkg){
+      if(IS_ANDROID){
+        if(IS_CHROME_ANDROID){
+          const fb = encodeURIComponent(app.web);
+          window.location.href = "intent://#Intent;scheme=" + app.scheme +
+            ";package=" + app.pkg + ";S.browser_fallback_url=" + fb + ";end";
+        } else {
+          launchScheme(app.scheme, app.web);
+        }
+      } else {
+        launchScheme(app.ios, app.web);
+      }
+      return "Opening " + app.label + " on your device, sir.";
+    }
+    window.open(app.web, "_blank", "noopener");
+    return "Opening " + app.label + ".";
+  }
+
+  if(/^[\w-]+(\.[\w-]+)+$/.test(cleaned)){
+    window.open("https://" + cleaned, "_blank", "noopener");
+    return "Opening " + cleaned + ".";
+  }
+  window.open("https://www.google.com/search?q=" + encodeURIComponent(cleaned), "_blank", "noopener");
+  return "I don't have an app for " + cleaned + ", so I'm searching the web instead.";
+}
+
+// Device commands run in EVERY mode (offline and AI), so "open X" always acts.
+function deviceCommand(q){
+  const s = String(q).toLowerCase().trim();
+  let m = s.match(/^(?:please\s+)?(?:open|launch|start|go to|go on|switch to|bring up)\s+(.+)$/);
+  if(m) return openAppOrSite(m[1]);
+  m = s.match(/^(?:search(?: for)?|google|look up|find)\s+(.+)$/);
+  if(m){
+    window.open("https://www.google.com/search?q=" + encodeURIComponent(m[1]), "_blank", "noopener");
+    return "Searching the web for " + m[1] + ".";
+  }
+  return null;
+}
+
 function offlineReply(q){
   const s = q.toLowerCase().trim();
 
@@ -655,26 +757,8 @@ function offlineReply(q){
 
   if(/\bjoke\b/.test(s)) return JOKES[Math.floor(Math.random()*JOKES.length)];
 
-  // open / search
-  const openM = s.match(/^(?:open|launch|go to)\s+(.+)$/);
-  if(openM){
-    const target = openM[1].replace(/\s+website|\s+dot com|\.com/gi,"").trim();
-    const known = { youtube:"https://youtube.com", google:"https://google.com", gmail:"https://mail.google.com",
-      github:"https://github.com", whatsapp:"https://web.whatsapp.com", maps:"https://maps.google.com",
-      twitter:"https://twitter.com", x:"https://x.com", instagram:"https://instagram.com", linkedin:"https://linkedin.com",
-      spotify:"https://open.spotify.com", netflix:"https://netflix.com", wikipedia:"https://wikipedia.org",
-      chatgpt:"https://chat.openai.com", reddit:"https://reddit.com" };
-    let url = known[target] || (target.includes(".") ? "https://"+target : "https://www.google.com/search?q="+encodeURIComponent(target));
-    window.open(url,"_blank","noopener");
-    return "Opening " + target + " now.";
-  }
-  const searchM = s.match(/^(?:search(?: for)?|google|look up|find)\s+(.+)$/);
-  if(searchM){
-    window.open("https://www.google.com/search?q="+encodeURIComponent(searchM[1]),"_blank","noopener");
-    return "Searching the web for " + searchM[1] + ".";
-  }
   if(/\b(capabilit|what can you do|help|commands)\b/.test(s)){
-    return "Right now I'm in offline mode, so I handle: the time and date, mental arithmetic, jokes, and opening sites or web searches. Add an API key in Settings and I gain a full AI brain for real conversation.";
+    return "I handle: the time and date, mental arithmetic, jokes, opening apps and websites, and web searches. On a phone I launch the real app — try \"open YouTube\". Add an API key in Settings and I gain a full AI brain for real conversation.";
   }
   if(/\b(hello|hi|hey|jarvis)\b/.test(s) && s.length<20){
     return "At your service, sir. What can I do for you?";
@@ -722,7 +806,10 @@ async function send(text){
 
   try{
     let reply;
-    if(cfg.apiKey && cfg.baseUrl && cfg.model){
+    const cmd = deviceCommand(text);   // open apps / search work in every mode
+    if(cmd !== null){
+      reply = cmd;
+    } else if(cfg.apiKey && cfg.baseUrl && cfg.model){
       setStatus("ready");
       reply = await askLLM(text);
     } else {
