@@ -643,38 +643,187 @@ const IS_IOS = /iPhone|iPad|iPod/i.test(UA) || (/Macintosh/.test(UA) && (navigat
 const IS_MOBILE = IS_ANDROID || IS_IOS || /Mobile|Tablet/i.test(UA);
 const IS_CHROME_ANDROID = IS_ANDROID && /Chrome\//.test(UA) && !/EdgA|OPR|SamsungBrowser/i.test(UA);
 
-// website + native app deep-link scheme / Android package for each app
-const APPS = {
-  youtube:   { label:"YouTube",     web:"https://www.youtube.com",   ios:"youtube://",       scheme:"youtube",       pkg:"com.google.android.youtube" },
-  whatsapp:  { label:"WhatsApp",    web:"https://web.whatsapp.com",  ios:"whatsapp://",      scheme:"whatsapp",      pkg:"com.whatsapp" },
-  instagram: { label:"Instagram",   web:"https://www.instagram.com", ios:"instagram://app",  scheme:"instagram",     pkg:"com.instagram.android" },
-  facebook:  { label:"Facebook",    web:"https://www.facebook.com",  ios:"fb://",            scheme:"fb",            pkg:"com.facebook.katana" },
-  twitter:   { label:"X",           web:"https://twitter.com",       ios:"twitter://",       scheme:"twitter",       pkg:"com.twitter.android" },
-  x:         { label:"X",           web:"https://x.com",             ios:"twitter://",       scheme:"twitter",       pkg:"com.twitter.android" },
-  spotify:   { label:"Spotify",     web:"https://open.spotify.com",  ios:"spotify://",       scheme:"spotify",       pkg:"com.spotify.music" },
-  netflix:   { label:"Netflix",     web:"https://www.netflix.com",   ios:"nflx://",          scheme:"nflx",          pkg:"com.netflix.mediaclient" },
-  gmail:     { label:"Gmail",       web:"https://mail.google.com",   ios:"googlegmail://",   scheme:"googlegmail",   pkg:"com.google.android.gm" },
-  maps:      { label:"Maps",        web:"https://maps.google.com",   ios:"comgooglemaps://", scheme:"comgooglemaps", pkg:"com.google.android.apps.maps" },
-  linkedin:  { label:"LinkedIn",    web:"https://www.linkedin.com",  ios:"linkedin://",      scheme:"linkedin",      pkg:"com.linkedin.android" },
-  reddit:    { label:"Reddit",      web:"https://www.reddit.com",    ios:"reddit://",        scheme:"reddit",        pkg:"com.reddit.frontpage" },
-  snapchat:  { label:"Snapchat",    web:"https://www.snapchat.com",  ios:"snapchat://",      scheme:"snapchat",      pkg:"com.snapchat.android" },
-  telegram:  { label:"Telegram",    web:"https://web.telegram.org",  ios:"tg://",            scheme:"tg",            pkg:"org.telegram.messenger" },
-  amazon:    { label:"Amazon",      web:"https://www.amazon.in",     ios:"amzn://",          scheme:"amzn",          pkg:"in.amazon.mShop.android.shopping" },
-  flipkart:  { label:"Flipkart",    web:"https://www.flipkart.com",  ios:"flipkart://",      scheme:"flipkart",      pkg:"com.flipkart.android" },
-  swiggy:    { label:"Swiggy",      web:"https://www.swiggy.com",    ios:"swiggy://",        scheme:"swiggy",        pkg:"in.swiggy.android" },
-  zomato:    { label:"Zomato",      web:"https://www.zomato.com",    ios:"zomato://",        scheme:"zomato",        pkg:"com.application.zomato" },
-  paytm:     { label:"Paytm",       web:"https://paytm.com",         ios:"paytmmp://",       scheme:"paytmmp",       pkg:"net.one97.paytm" },
-  phonepe:   { label:"PhonePe",     web:"https://www.phonepe.com",   ios:"phonepe://",       scheme:"phonepe",       pkg:"com.phonepe.app" },
-  hotstar:   { label:"Hotstar",     web:"https://www.hotstar.com",   ios:"hotstar://",       scheme:"hotstar",       pkg:"in.startv.hotstar" },
-  prime:     { label:"Prime Video", web:"https://www.primevideo.com", ios:"aiv://",          scheme:"aiv",           pkg:"com.amazon.avod.thirdpartyclient" },
-  // web-only (no reliable native deep link)
-  google:    { label:"Google",      web:"https://www.google.com" },
-  github:    { label:"GitHub",      web:"https://github.com" },
-  wikipedia: { label:"Wikipedia",   web:"https://www.wikipedia.org" },
-  chatgpt:   { label:"ChatGPT",     web:"https://chat.openai.com" },
-  irctc:     { label:"IRCTC",       web:"https://www.irctc.co.in" }
-};
-
+// website + native app deep-link scheme / Android package for each app.
+// row: [ "alias|alias|alias", Label, website, iOS scheme, Android scheme, Android package ]
+// A row with no package has no reliable native deep link, so we open the website
+// (which on a phone usually still hands off to the installed app via a universal link).
+const APP_ROWS = [
+  // ---- social & messaging ----
+  ["youtube|yt|you tube","YouTube","https://www.youtube.com","youtube://","youtube","com.google.android.youtube"],
+  ["youtube music|ytmusic|yt music","YouTube Music","https://music.youtube.com","youtubemusic://","youtubemusic","com.google.android.apps.youtube.music"],
+  ["whatsapp|wa|whats app|whatsap","WhatsApp","https://web.whatsapp.com","whatsapp://","whatsapp","com.whatsapp"],
+  ["instagram|insta|ig|insta gram","Instagram","https://www.instagram.com","instagram://app","instagram","com.instagram.android"],
+  ["facebook|fb|face book","Facebook","https://www.facebook.com","fb://","fb","com.facebook.katana"],
+  ["messenger|facebook messenger|fb messenger","Messenger","https://www.messenger.com","fb-messenger://","fb-messenger","com.facebook.orca"],
+  ["twitter|tweeter","X (Twitter)","https://twitter.com","twitter://","twitter","com.twitter.android"],
+  ["x|xeet","X","https://x.com","twitter://","twitter","com.twitter.android"],
+  ["threads","Threads","https://www.threads.net","bubbles://","bubbles","com.instagram.barcelona"],
+  ["snapchat|snap","Snapchat","https://www.snapchat.com","snapchat://","snapchat","com.snapchat.android"],
+  ["telegram|tg","Telegram","https://web.telegram.org","tg://","tg","org.telegram.messenger"],
+  ["signal","Signal","https://signal.org","sgnl://","sgnl","org.thoughtcrime.securesms"],
+  ["discord","Discord","https://discord.com","discord://","discord","com.discord"],
+  ["reddit","Reddit","https://www.reddit.com","reddit://","reddit","com.reddit.frontpage"],
+  ["tiktok|tik tok","TikTok","https://www.tiktok.com","snssdk1233://","snssdk1233","com.zhiliaoapp.musically"],
+  ["pinterest","Pinterest","https://www.pinterest.com","pinterest://","pinterest","com.pinterest"],
+  ["linkedin","LinkedIn","https://www.linkedin.com","linkedin://","linkedin","com.linkedin.android"],
+  ["viber","Viber","https://www.viber.com","viber://","viber","com.viber.voip"],
+  ["line","LINE","https://line.me","line://","line","jp.naver.line.android"],
+  ["wechat","WeChat","https://www.wechat.com","weixin://","weixin","com.tencent.mm"],
+  // ---- music, video & streaming ----
+  ["spotify","Spotify","https://open.spotify.com","spotify://","spotify","com.spotify.music"],
+  ["netflix","Netflix","https://www.netflix.com","nflx://","nflx","com.netflix.mediaclient"],
+  ["prime video|amazon prime video|prime|amazon prime","Prime Video","https://www.primevideo.com","aiv://","aiv","com.amazon.avod.thirdpartyclient"],
+  ["hotstar|disney hotstar|jiohotstar|jio hotstar|disney+ hotstar","JioHotstar","https://www.hotstar.com","hotstar://","hotstar","in.startv.hotstar"],
+  ["disney plus|disney+","Disney+","https://www.disneyplus.com","disneyplus://","disneyplus","com.disney.disneyplus"],
+  ["twitch","Twitch","https://www.twitch.tv","twitch://","twitch","tv.twitch.android.app"],
+  ["hulu","Hulu","https://www.hulu.com","hulu://","hulu","com.hulu.plus"],
+  ["sonyliv|sony liv","SonyLIV","https://www.sonyliv.com","sonyliv://","sonyliv","com.sonyliv"],
+  ["zee5|zee 5","ZEE5","https://www.zee5.com","zee5://","zee5","com.graymatrix.did"],
+  ["mx player|mxplayer","MX Player","https://www.mxplayer.in",null,null,null],
+  ["voot","Voot","https://www.voot.com",null,null,null],
+  ["aha","aha","https://www.aha.video",null,null,null],
+  ["wynk|wynk music","Wynk Music","https://wynk.in","wynk://","wynk","com.bsbportal.music"],
+  ["gaana","Gaana","https://gaana.com","gaana://","gaana","com.gaana"],
+  ["jiosaavn|jio saavn|saavn","JioSaavn","https://www.jiosaavn.com","jiosaavn://","jiosaavn","com.jio.media.jiobeats"],
+  ["audible","Audible","https://www.audible.in","audible://","audible","com.audible.application"],
+  ["soundcloud","SoundCloud","https://soundcloud.com","soundcloud://","soundcloud","com.soundcloud.android"],
+  ["shazam","Shazam","https://www.shazam.com","shazam://","shazam","com.shazam.android"],
+  ["apple music","Apple Music","https://music.apple.com","music://","music","com.apple.android.music"],
+  ["bookmyshow|book my show|bms","BookMyShow","https://in.bookmyshow.com","bookmyshow://","bookmyshow","com.bt.bms"],
+  // ---- email & productivity ----
+  ["gmail|google mail","Gmail","https://mail.google.com","googlegmail://","googlegmail","com.google.android.gm"],
+  ["outlook|hotmail","Outlook","https://outlook.live.com","ms-outlook://","ms-outlook","com.microsoft.office.outlook"],
+  ["yahoo mail","Yahoo Mail","https://mail.yahoo.com","yahoomail://","yahoomail","com.yahoo.mobile.client.android.mail"],
+  ["protonmail|proton mail","Proton Mail","https://mail.proton.me","protonmail://","protonmail","ch.protonmail.android"],
+  ["google drive|drive","Google Drive","https://drive.google.com","googledrive://","googledrive","com.google.android.apps.docs"],
+  ["google docs|docs","Google Docs","https://docs.google.com","googledocs://","googledocs","com.google.android.apps.docs.editors.docs"],
+  ["google photos|photos","Google Photos","https://photos.google.com","googlephotos://","googlephotos","com.google.android.apps.photos"],
+  ["google calendar|calendar|gcal","Google Calendar","https://calendar.google.com","gcal://","gcal","com.google.android.calendar"],
+  ["google keep|keep|google notes","Google Keep","https://keep.google.com","googlekeep://","googlekeep","com.google.android.keep"],
+  ["notion","Notion","https://www.notion.so","notion://","notion","notion.id"],
+  ["trello","Trello","https://trello.com","trello://","trello","com.trello"],
+  ["asana","Asana","https://asana.com","asana://","asana","com.asana.app"],
+  ["slack","Slack","https://slack.com","slack://","slack","com.Slack"],
+  ["zoom","Zoom","https://zoom.us","zoomus://","zoomus","us.zoom.videomeetings"],
+  ["google meet|meet|gmeet","Google Meet","https://meet.google.com","gmeet://","gmeet","com.google.android.apps.meetings"],
+  ["microsoft teams|ms teams|teams","Microsoft Teams","https://teams.microsoft.com","msteams://","msteams","com.microsoft.teams"],
+  ["figma","Figma","https://www.figma.com","figma://","figma","com.figma.mirror"],
+  ["canva","Canva","https://www.canva.com","canva://","canva","com.canva.editor"],
+  // ---- maps, travel & cabs ----
+  ["google maps|maps|gmaps|google map","Google Maps","https://maps.google.com","comgooglemaps://","comgooglemaps","com.google.android.apps.maps"],
+  ["apple maps","Apple Maps","https://maps.apple.com",null,null,null],
+  ["waze","Waze","https://www.waze.com","waze://","waze","com.waze"],
+  ["uber","Uber","https://www.uber.com","uber://","uber","com.ubercab"],
+  ["ola|ola cabs","Ola","https://www.olacabs.com","ola://","ola","com.olacabs.customer"],
+  ["rapido","Rapido","https://rapido.bike","rapido://","rapido","com.rapido.passenger"],
+  ["airbnb","Airbnb","https://www.airbnb.co.in","airbnb://","airbnb","com.airbnb.android"],
+  ["booking|booking com","Booking.com","https://www.booking.com","booking://","booking","com.booking"],
+  ["makemytrip|mmt|make my trip","MakeMyTrip","https://www.makemytrip.com","makemytrip://","makemytrip","com.makemytrip"],
+  ["goibibo","Goibibo","https://www.goibibo.com","goibibo://","goibibo","com.goibibo"],
+  ["redbus","RedBus","https://www.redbus.in","redbus://","redbus","in.redbus.android"],
+  ["irctc|irctc rail connect","IRCTC","https://www.irctc.co.in",null,null,null],
+  ["indigo|indigo airlines","IndiGo","https://www.goindigo.in",null,null,null],
+  ["indian railways|railways|train","Indian Railways","https://www.indianrail.gov.in",null,null,null],
+  ["google earth","Google Earth","https://earth.google.com",null,null,null],
+  // ---- food & grocery ----
+  ["zomato","Zomato","https://www.zomato.com","zomato://","zomato","com.application.zomato"],
+  ["swiggy","Swiggy","https://www.swiggy.com","swiggy://","swiggy","in.swiggy.android"],
+  ["blinkit|grofers","Blinkit","https://blinkit.com","blinkit://","blinkit","com.grofers.customerapp"],
+  ["zepto","Zepto","https://www.zeptonow.com","zepto://","zepto","com.zeptoconsumerapp"],
+  ["bigbasket|big basket","BigBasket","https://www.bigbasket.com","bigbasket://","bigbasket","com.bigbasket.mobileapp"],
+  ["dunzo","Dunzo","https://www.dunzo.com","dunzo://","dunzo","com.dunzo.user"],
+  ["dominos|domino's|dominos pizza","Domino's","https://www.dominos.co.in","dominos://","dominos","com.Dominos"],
+  ["mcdonalds|mcdonald's|mcd","McDonald's","https://www.mcdonaldsindia.com",null,null,null],
+  ["starbucks","Starbucks","https://www.starbucks.in",null,null,null],
+  ["licious","Licious","https://www.licious.in",null,null,null],
+  // ---- shopping ----
+  ["amazon","Amazon","https://www.amazon.in","amzn://","amzn","in.amazon.mShop.android.shopping"],
+  ["flipkart","Flipkart","https://www.flipkart.com","flipkart://","flipkart","com.flipkart.android"],
+  ["myntra","Myntra","https://www.myntra.com","myntra://","myntra","com.myntra.android"],
+  ["ajio","AJIO","https://www.ajio.com","ajio://","ajio","com.ril.ajio"],
+  ["meesho","Meesho","https://www.meesho.com","meesho://","meesho","com.meesho.supply"],
+  ["nykaa","Nykaa","https://www.nykaa.com","nykaa://","nykaa","com.fsn.nykaa"],
+  ["snapdeal","Snapdeal","https://www.snapdeal.com","snapdeal://","snapdeal","com.snapdeal.main"],
+  ["ebay","eBay","https://www.ebay.in","ebay://","ebay","com.ebay.mobile"],
+  ["aliexpress|ali express","AliExpress","https://www.aliexpress.com","aliexpress://","aliexpress","com.alibaba.aliexpresshd"],
+  // ---- payments & banking ----
+  ["paytm","Paytm","https://paytm.com","paytmmp://","paytmmp","net.one97.paytm"],
+  ["phonepe|phone pe","PhonePe","https://www.phonepe.com","phonepe://","phonepe","com.phonepe.app"],
+  ["google pay|gpay|g pay","Google Pay","https://pay.google.com","tez://","tez","com.google.android.apps.nbu.paisa.user"],
+  ["cred","CRED","https://cred.club","cred://","cred","com.dreamplug.androidapp"],
+  ["mobikwik","MobiKwik","https://www.mobikwik.com","mobikwik://","mobikwik","com.mobikwik_new"],
+  ["freecharge","Freecharge","https://www.freecharge.in","freecharge://","freecharge","com.freecharge.android"],
+  ["yono|yono sbi|sbi yono|sbi","YONO SBI","https://yonosbi.onlinesbi.sbi","yonosbi://","yonosbi","com.sbi.lotusintouch"],
+  ["hdfc|hdfc bank","HDFC Bank","https://www.hdfcbank.com","hdfcbank://","hdfcbank","com.snapwork.hdfc"],
+  ["icici|icici bank","ICICI Bank","https://www.icicibank.com","icicibank://","icicibank","com.csam.icici.bank.imobile"],
+  ["axis bank|axis","Axis Bank","https://www.axisbank.com","axisbank://","axisbank","com.axis.mobile"],
+  ["kotak|kotak bank","Kotak Bank","https://www.kotak.com","kotakbank://","kotakbank","com.msf.kbank.mobile"],
+  // ---- dev, AI & reference ----
+  ["github","GitHub","https://github.com","github://","github","com.github.android"],
+  ["gitlab","GitLab","https://gitlab.com","gitlab://","gitlab","com.gitlab.android"],
+  ["stackoverflow|stack overflow","Stack Overflow","https://stackoverflow.com","stackoverflow://","stackoverflow","com.stackexchange.marvin"],
+  ["chatgpt|openai|gpt|chat gpt","ChatGPT","https://chat.openai.com","chatgpt://","chatgpt","com.openai.chatgpt"],
+  ["gemini|google gemini|bard","Gemini","https://gemini.google.com","googlegemini://","googlegemini","com.google.android.apps.bard"],
+  ["claude","Claude","https://claude.ai","claude://","claude","com.anthropic.claude"],
+  ["perplexity","Perplexity","https://www.perplexity.ai","perplexity://","perplexity","ai.perplexity.app.android"],
+  ["copilot|microsoft copilot","Microsoft Copilot","https://copilot.microsoft.com",null,null,null],
+  ["wikipedia|wiki","Wikipedia","https://www.wikipedia.org","wikipedia://","wikipedia","org.wikipedia"],
+  ["quora","Quora","https://www.quora.com","quora://","quora","com.quora.android"],
+  ["medium","Medium","https://medium.com","medium://","medium","com.medium.reader"],
+  ["google translate|translate","Google Translate","https://translate.google.com",null,null,null],
+  ["google","Google","https://www.google.com",null,null,null],
+  ["bing","Bing","https://www.bing.com",null,null,null],
+  ["duckduckgo","DuckDuckGo","https://duckduckgo.com",null,null,null],
+  // ---- news, learning, health, fitness, games ----
+  ["google news|news","Google News","https://news.google.com","googlenews://","googlenews","com.google.android.apps.magazines"],
+  ["inshorts","Inshorts","https://www.inshorts.com","inshorts://","inshorts","com.nis.app"],
+  ["dailyhunt","Dailyhunt","https://www.dailyhunt.in","dailyhunt://","dailyhunt","com.eterno"],
+  ["coursera","Coursera","https://www.coursera.org","coursera://","coursera","org.coursera.android"],
+  ["udemy","Udemy","https://www.udemy.com","udemy://","udemy","com.udemy.android"],
+  ["byjus|byju's","BYJU'S","https://byjus.com","byjus://","byjus","com.byjus.thelearningapp"],
+  ["unacademy","Unacademy","https://unacademy.com","unacademy://","unacademy","com.unacademyapp"],
+  ["khan academy","Khan Academy","https://www.khanacademy.org","khanacademy://","khanacademy","org.khanacademy.android"],
+  ["duolingo","Duolingo","https://www.duolingo.com","duolingo://","duolingo","com.duolingo"],
+  ["practo","Practo","https://www.practo.com","practo://","practo","com.practo.fabric"],
+  ["1mg|tata 1mg","Tata 1mg","https://www.1mg.com","1mg://","1mg","com.aranoah.healthkart.plus"],
+  ["apollo 247|apollo247|apollo","Apollo 247","https://www.apollo247.com","apollo247://","apollo247","com.apollo.patientapp"],
+  ["netmeds","Netmeds","https://www.netmeds.com","netmeds://","netmeds","com.netmeds"],
+  ["pharmeasy|pharm easy","PharmEasy","https://pharmeasy.in","pharmeasy://","pharmeasy","com.pharmeasy.patient"],
+  ["cultfit|cult.fit|cult","cult.fit","https://www.cult.fit","cultfit://","cultfit","com.curefit"],
+  ["healthifyme","HealthifyMe","https://www.healthifyme.com","healthifyme://","healthifyme","com.healthifyme.basic"],
+  ["myfitnesspal","MyFitnessPal","https://www.myfitnesspal.com","myfitnesspal://","myfitnesspal","com.myfitnesspal.android"],
+  ["strava","Strava","https://www.strava.com","strava://","strava","com.strava"],
+  ["bgmi|pubg","BGMI / PUBG","https://www.pubg.com",null,null,null],
+  ["freefire|free fire","Free Fire","https://ff.garena.com",null,null,null],
+  ["clash of clans|clash","Clash of Clans","https://supercell.com",null,null,null],
+  ["minecraft","Minecraft","https://www.minecraft.net",null,null,null],
+  ["roblox","Roblox","https://www.roblox.com","roblox://","roblox","com.roblox.client"],
+  ["ludo king|ludo","Ludo King","https://www.ludoking.com",null,null,null],
+  ["candy crush","Candy Crush","https://www.candycrush.com",null,null,null]
+];
+const APPS = [], APP_INDEX = {};
+APP_ROWS.forEach(function(r){
+  const app = { a:r[0].split("|"), label:r[1], web:r[2], ios:r[3]||null, scheme:r[4]||null, pkg:r[5]||null };
+  APPS.push(app);
+  app.a.forEach(function(al){
+    APP_INDEX[al] = app;
+    const compact = al.replace(/[^a-z0-9]/g, "");   // also match "disney plus" -> "disneyplus"
+    if(compact && !APP_INDEX[compact]) APP_INDEX[compact] = app;
+  });
+});
+// exact alias match first, then fuzzy (alias appears inside the spoken phrase, or vice-versa)
+function findApp(key){
+  if(!key) return null;
+  if(APP_INDEX[key]) return APP_INDEX[key];
+  let best = null, bestLen = 0;
+  for(const al in APP_INDEX){
+    if(al.length < 3) continue;
+    if(key.indexOf(al) !== -1 || al.indexOf(key) !== -1){
+      if(al.length > bestLen){ best = APP_INDEX[al]; bestLen = al.length; }
+    }
+  }
+  return best;
+}
 // Try a custom scheme; if nothing opens the app within ~1.6s, fall back to the website.
 function launchScheme(scheme, webUrl){
   let settled = false;
@@ -695,7 +844,7 @@ function openAppOrSite(rawTarget){
     .replace(/\.com\b/gi, " ")
     .trim();
   const key = cleaned.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const app = APPS[key];
+  const app = findApp(key);
 
   if(app){
     // On a phone, launch the installed app first.
@@ -758,7 +907,7 @@ function offlineReply(q){
   if(/\bjoke\b/.test(s)) return JOKES[Math.floor(Math.random()*JOKES.length)];
 
   if(/\b(capabilit|what can you do|help|commands)\b/.test(s)){
-    return "I handle: the time and date, mental arithmetic, jokes, opening apps and websites, and web searches. On a phone I launch the real app — try \"open YouTube\". Add an API key in Settings and I gain a full AI brain for real conversation.";
+    return "I know 140+ apps and websites — try \"open Instagram\", \"open Swiggy\", \"open Google Maps\" or \"open ChatGPT\". On a phone I launch the real app. I also do the time and date, mental arithmetic, jokes and web searches. Add an API key in Settings and I gain a full AI brain for real conversation.";
   }
   if(/\b(hello|hi|hey|jarvis)\b/.test(s) && s.length<20){
     return "At your service, sir. What can I do for you?";
